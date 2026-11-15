@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class SignupRequest(BaseModel):
@@ -56,17 +56,36 @@ class PaymentRequest(BaseModel):
     amount: Decimal = Field(gt=0, le=100000, max_digits=12, decimal_places=2)
     note: str | None = Field(default=None, max_length=255)
     idempotency_key: str = Field(min_length=8, max_length=64)
+    device_id: str | None = Field(default=None, max_length=100)
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+
+    @model_validator(mode="after")
+    def location_pair(self):
+        if (self.latitude is None) != (self.longitude is None):
+            raise ValueError("Send both latitude and longitude, or neither")
+        return self
+
+
+class CheckOut(BaseModel):
+    check_name: str
+    score: float
+    reason: str | None
+    thread_name: str | None
+    duration_ms: int | None
 
 
 class PaymentOut(BaseModel):
     transaction_id: int
     status: str
     decision: str | None
+    risk_score: float | None
     amount: float
     receiver_name: str
     current_balance: float
     message: str
     created_at: datetime
+    checks: list[CheckOut] = []
 
 
 class TransactionOut(BaseModel):
@@ -76,4 +95,25 @@ class TransactionOut(BaseModel):
     amount: float
     status: str
     note: str | None
+    created_at: datetime
+
+
+class FlaggedOut(BaseModel):
+    transaction_id: int
+    amount: float
+    receiver_name: str
+    status: str
+    decision: str | None
+    risk_score: float | None
+    reason: str | None
+    case_status: str
+    created_at: datetime
+    checks: list[CheckOut] = []
+
+
+class AlertOut(BaseModel):
+    id: int
+    transaction_id: int
+    role: str
+    message: str
     created_at: datetime

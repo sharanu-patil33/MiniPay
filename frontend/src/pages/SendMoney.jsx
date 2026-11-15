@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import jsQR from "jsqr";
 import api, { getErrorMessage } from "../api";
-import { formatMoney } from "../utils";
+import RiskBreakdown from "../components/RiskBreakdown";
+import { formatMoney, getDeviceId, getLocation } from "../utils";
 
 function decodeQrFromFile(file) {
   return new Promise((resolve, reject) => {
@@ -125,12 +126,20 @@ export default function SendMoney() {
 
     setPaying(true);
     try {
-      const res = await api.post("/payments", {
+      const loc = await getLocation();
+      const payload = {
         receiver_id: receiver.id,
         amount: Number(amount),
         note: note.trim() || null,
         idempotency_key: keyRef.current,
-      });
+        device_id: getDeviceId(),
+      };
+      if (loc) {
+        payload.latitude = loc.latitude;
+        payload.longitude = loc.longitude;
+      }
+
+      const res = await api.post("/payments", payload);
       keyRef.current = null;
       setResult(res.data);
       setStep("result");
@@ -160,12 +169,30 @@ export default function SendMoney() {
 
   // ---------- Screen 3: result ----------
   if (step === "result" && result) {
-    const ok = result.status === "COMPLETED";
+    const completed = result.status === "COMPLETED";
+    const blocked = result.status === "BLOCKED";
+    const review = completed && result.decision === "REVIEW";
+
+    const iconClass = blocked ? "bad" : review ? "warn" : completed ? "ok" : "bad";
+    const icon = blocked || review ? "!" : completed ? "✓" : "✕";
+
     return (
       <div className="page">
         <div className="card">
-          <div className={ok ? "status-icon ok" : "status-icon bad"}>{ok ? "✓" : "✕"}</div>
+          <div className={`status-icon ${iconClass}`}>{icon}</div>
           <h2 style={{ textAlign: "center" }}>{result.message}</h2>
+
+          {blocked && (
+            <div className="notice bad">
+              This payment was flagged as suspicious and blocked. No money was
+              deducted from your account.
+            </div>
+          )}
+          {review && (
+            <div className="notice warn">
+              The payment went through, but it was flagged for review.
+            </div>
+          )}
 
           <div className="balance">
             <span>Amount</span>
@@ -177,7 +204,18 @@ export default function SendMoney() {
           <p className="hint">Transaction ID: {result.transaction_id}</p>
           <p className="hint">Your balance: {formatMoney(result.current_balance)}</p>
 
+          <RiskBreakdown
+            checks={result.checks}
+            riskScore={result.risk_score}
+            decision={result.decision}
+          />
+
           <button onClick={() => navigate("/dashboard")}>Back to dashboard</button>
+          {(blocked || review) && (
+            <button className="secondary" onClick={() => navigate("/flagged")}>
+              View flagged transactions
+            </button>
+          )}
           <button className="secondary" onClick={reset}>Send another payment</button>
         </div>
       </div>
@@ -226,7 +264,7 @@ export default function SendMoney() {
           {payError && <p className="error">{payError}</p>}
 
           <button onClick={pay} disabled={paying}>
-            {paying ? "Processing..." : "Pay"}
+            {paying ? "Running fraud checks..." : "Pay"}
           </button>
           <button className="secondary" onClick={() => setStep("choose")} disabled={paying}>
             Change receiver

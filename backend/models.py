@@ -2,6 +2,7 @@ from datetime import datetime
 from sqlalchemy import (
     Column, Integer, String, Numeric, Float, DateTime, ForeignKey, Text
 )
+from sqlalchemy.dialects.mysql import DATETIME
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -60,8 +61,8 @@ class RiskResult(Base):
     score = Column(Float, nullable=False)
     reason = Column(String(255))
     thread_name = Column(String(100))
-    started_at = Column(DateTime)
-    ended_at = Column(DateTime)
+    started_at = Column(DATETIME(fsp=6))   # microsecond precision
+    ended_at = Column(DATETIME(fsp=6))
 
     transaction = relationship("Transaction", back_populates="risk_results")
 

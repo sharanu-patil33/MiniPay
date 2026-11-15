@@ -3,6 +3,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import SendMoney from "./pages/SendMoney";
+import Flagged from "./pages/Flagged";
 
 function Protected({ children }) {
   return localStorage.getItem("token") ? children : <Navigate to="/login" replace />;
@@ -27,6 +28,14 @@ function App() {
         element={
           <Protected>
             <SendMoney />
+          </Protected>
+        }
+      />
+      <Route
+        path="/flagged"
+        element={
+          <Protected>
+            <Flagged />
           </Protected>
         }
       />

@@ -53,6 +53,9 @@ export default function Dashboard() {
         </div>
 
         <button onClick={() => navigate("/send")}>Send money</button>
+        <button className="secondary" onClick={() => navigate("/flagged")}>
+          Flagged transactions
+        </button>
 
         <p className="hint">Phone: {me.phone}</p>
         <p className="hint">
@@ -67,24 +70,32 @@ export default function Dashboard() {
         <h3>Recent transactions</h3>
         {history.length === 0 && <p className="hint">No transactions yet.</p>}
         <div className="txn-list">
-          {history.map((t) => (
-            <div className="txn" key={t.id}>
-              <div>
-                <strong>
-                  {t.direction === "sent" ? "To " : "From "}
-                  {t.other_party}
-                </strong>
-                <div className="hint">
-                  {formatTime(t.created_at)} · {t.status}
-                  {t.note ? ` · ${t.note}` : ""}
+          {history.map((t) => {
+            const moved = t.status === "COMPLETED"; // only completed payments moved money
+            return (
+              <div className="txn" key={t.id}>
+                <div>
+                  <strong>
+                    {t.direction === "sent" ? "To " : "From "}
+                    {t.other_party}
+                  </strong>
+                  <div className="hint">
+                    {formatTime(t.created_at)} ·{" "}
+                    <span className={moved ? "" : "tag bad"}>{t.status}</span>
+                    {t.note ? ` · ${t.note}` : ""}
+                  </div>
+                </div>
+                <div
+                  className={
+                    !moved ? "amt void" : t.direction === "sent" ? "amt out" : "amt in"
+                  }
+                >
+                  {moved ? (t.direction === "sent" ? "-" : "+") : ""}
+                  {formatMoney(t.amount)}
                 </div>
               </div>
-              <div className={t.direction === "sent" ? "amt out" : "amt in"}>
-                {t.direction === "sent" ? "-" : "+"}
-                {formatMoney(t.amount)}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <button className="secondary" onClick={logout}>Log out</button>
