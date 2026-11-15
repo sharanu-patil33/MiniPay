@@ -40,6 +40,11 @@ h2 {
   font-weight: 600;
 }
 
+h3 {
+  margin: 16px 0 4px;
+  font-size: 16px;
+}
+
 label {
   font-size: 13px;
   color: #555b70;
@@ -120,4 +125,119 @@ button.secondary {
   border: 1px solid #e0e3f0;
   border-radius: 12px;
   padding: 8px;
+}
+
+.or {
+  text-align: center;
+  color: #8a90a6;
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+
+.file-button {
+  display: block;
+  text-align: center;
+  padding: 12px;
+  border: 1.5px dashed #5b3df5;
+  border-radius: 10px;
+  color: #3a2fb0;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.file-button:hover {
+  background: #f4f1ff;
+}
+
+.user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.user-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  background: #f8f9fe;
+  color: #1c1f2b;
+  border: 1px solid #e0e3f0;
+  border-radius: 12px;
+  font-weight: normal;
+}
+
+.user-item:hover {
+  background: #f0edff;
+}
+
+.user-item.selected {
+  background: #f4f1ff;
+  cursor: default;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #5b3df5;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.status-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  margin-bottom: 4px;
+}
+
+.status-icon.ok {
+  background: #1fa971;
+}
+
+.status-icon.bad {
+  background: #d62839;
+}
+
+.txn-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.txn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eceefb;
+}
+
+.amt {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.amt.out {
+  color: #d62839;
+}
+
+.amt.in {
+  color: #1fa971;
 }

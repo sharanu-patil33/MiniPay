@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from database import get_db, engine, Base
 import models  # noqa: F401  (registers the tables)
 from auth import router as auth_router
+from users import router as users_router
+from payments import router as payments_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -20,6 +22,8 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(users_router)
+app.include_router(payments_router)
 
 
 @app.get("/")

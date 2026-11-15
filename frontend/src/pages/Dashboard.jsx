@@ -1,22 +1,26 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
+import { formatMoney, formatTime } from "../utils";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const [me, setMe] = useState(null);
   const [qr, setQr] = useState(null);
+  const [history, setHistory] = useState([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [meRes, qrRes] = await Promise.all([
+        const [meRes, qrRes, histRes] = await Promise.all([
           api.get("/auth/me"),
           api.get("/auth/me/qr"),
+          api.get("/payments/history"),
         ]);
         setMe(meRes.data);
         setQr(qrRes.data);
+        setHistory(histRes.data);
       } catch (err) {
         if (err?.response?.status === 401) {
           localStorage.removeItem("token");
@@ -45,8 +49,10 @@ export default function Dashboard() {
 
         <div className="balance">
           <span>Balance</span>
-          <strong>₹{me.balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+          <strong>{formatMoney(me.balance)}</strong>
         </div>
+
+        <button onClick={() => navigate("/send")}>Send money</button>
 
         <p className="hint">Phone: {me.phone}</p>
         <p className="hint">
@@ -54,9 +60,33 @@ export default function Dashboard() {
         </p>
 
         <img className="qr" src={qr.qr_image} alt="Your MiniPay QR code" />
-        <p className="hint">Others can scan this QR to pay you.</p>
+        <p className="hint" style={{ textAlign: "center" }}>
+          Others can scan this QR to pay you.
+        </p>
 
-        <button disabled title="Coming in the next step">Send money (coming soon)</button>
+        <h3>Recent transactions</h3>
+        {history.length === 0 && <p className="hint">No transactions yet.</p>}
+        <div className="txn-list">
+          {history.map((t) => (
+            <div className="txn" key={t.id}>
+              <div>
+                <strong>
+                  {t.direction === "sent" ? "To " : "From "}
+                  {t.other_party}
+                </strong>
+                <div className="hint">
+                  {formatTime(t.created_at)} · {t.status}
+                  {t.note ? ` · ${t.note}` : ""}
+                </div>
+              </div>
+              <div className={t.direction === "sent" ? "amt out" : "amt in"}>
+                {t.direction === "sent" ? "-" : "+"}
+                {formatMoney(t.amount)}
+              </div>
+            </div>
+          ))}
+        </div>
+
         <button className="secondary" onClick={logout}>Log out</button>
       </div>
     </div>
