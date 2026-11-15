@@ -3,7 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from database import get_db
+from database import get_db, engine, Base
+import models  # noqa: F401  (registers the tables)
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="MiniPay - UPI Fraud Detection API")
 
