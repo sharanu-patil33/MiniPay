@@ -3,7 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from database import get_db
+from database import get_db, engine, Base
+import models  # noqa: F401  (registers the tables)
+from auth import router as auth_router
+from users import router as users_router
+from payments import router as payments_router
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="MiniPay - UPI Fraud Detection API")
 
@@ -14,6 +20,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router)
+app.include_router(users_router)
+app.include_router(payments_router)
 
 
 @app.get("/")

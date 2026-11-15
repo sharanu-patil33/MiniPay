@@ -1,23 +1,46 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { Navigate, Route, Routes } from "react-router-dom";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Dashboard from "./pages/Dashboard";
+import SendMoney from "./pages/SendMoney";
+import Flagged from "./pages/Flagged";
+
+function Protected({ children }) {
+  return localStorage.getItem("token") ? children : <Navigate to="/login" replace />;
+}
 
 function App() {
-  const [status, setStatus] = useState("Checking...");
-
-  useEffect(() => {
-    axios
-      .get("http://localhost:8000/health")
-      .then((res) =>
-        setStatus(`Backend: ${res.data.status}, DB: ${res.data.database}`)
-      )
-      .catch(() => setStatus("Backend not reachable"));
-  }, []);
-
   return (
-    <div style={{ padding: 40, fontFamily: "sans-serif" }}>
-      <h1>MiniPay</h1>
-      <p>{status}</p>
-    </div>
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route
+        path="/dashboard"
+        element={
+          <Protected>
+            <Dashboard />
+          </Protected>
+        }
+      />
+      <Route
+        path="/send"
+        element={
+          <Protected>
+            <SendMoney />
+          </Protected>
+        }
+      />
+      <Route
+        path="/flagged"
+        element={
+          <Protected>
+            <Flagged />
+          </Protected>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
