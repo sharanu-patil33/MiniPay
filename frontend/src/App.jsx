@@ -1,12 +1,15 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import "./home.css";
+import "./staff.css";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import SendMoney from "./pages/SendMoney";
 import Flagged from "./pages/Flagged";
 import Admin from "./pages/Admin";
+import AdminSection from "./pages/AdminSection";
 import Ops from "./pages/Ops";
+import OpsSection from "./pages/OpsSection";
 import Scan from "./pages/Scan";
 import Balance from "./pages/Balance";
 import History from "./pages/History";
@@ -27,6 +30,8 @@ function Home() {
 }
 
 const USER = ["USER"];
+const OPS = ["OPS"];
+const ADMIN = ["ADMIN"];
 
 function App() {
   return (
@@ -43,8 +48,11 @@ function App() {
       <Route path="/flagged" element={<Protected roles={USER}><Flagged /></Protected>} />
       <Route path="/profile" element={<Protected roles={USER}><Profile /></Protected>} />
 
-      <Route path="/ops" element={<Protected roles={["OPS"]}><Ops /></Protected>} />
-      <Route path="/admin" element={<Protected roles={["ADMIN"]}><Admin /></Protected>} />
+      <Route path="/ops" element={<Protected roles={OPS}><Ops /></Protected>} />
+      <Route path="/ops/:section" element={<Protected roles={OPS}><OpsSection /></Protected>} />
+
+      <Route path="/admin" element={<Protected roles={ADMIN}><Admin /></Protected>} />
+      <Route path="/admin/:section" element={<Protected roles={ADMIN}><AdminSection /></Protected>} />
 
       <Route path="*" element={<Home />} />
     </Routes>

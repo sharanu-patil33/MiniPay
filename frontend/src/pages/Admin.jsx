@@ -1,20 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api";
-import StaffBar from "../components/StaffBar";
-import Cases from "../components/Cases";
-import ChangePassword from "../components/ChangePassword";
-import BanksPanel from "../components/admin/BanksPanel";
-import StaffPanel from "../components/admin/StaffPanel";
-import UsersPanel from "../components/admin/UsersPanel";
+import HomeShell from "../components/HomeShell";
 import { getSession } from "../session";
-
-const TABS = [
-  ["banks", "Banks"],
-  ["staff", "Operations team"],
-  ["users", "Users"],
-  ["cases", "Flagged cases"],
-  ["account", "My account"],
-];
 
 const STATS = [
   ["banks", "Banks"],
@@ -27,53 +14,75 @@ const STATS = [
 
 export default function Admin() {
   const { name } = getSession();
-  const [tab, setTab] = useState("banks");
   const [overview, setOverview] = useState(null);
-  const [version, setVersion] = useState(0);
-
-  const refresh = () => setVersion((v) => v + 1);
 
   useEffect(() => {
     api
       .get("/admin/overview")
       .then((res) => setOverview(res.data))
       .catch(() => {});
-  }, [version]);
+  }, []);
+
+  const o = overview;
+
+  const actions = [
+    {
+      path: "/admin/staff",
+      icon: "🧑‍💼",
+      label: "Operations team",
+      hint: "Create bank ops logins and reset passwords",
+      primary: true,
+      count: o?.ops_members,
+    },
+    {
+      path: "/admin/banks",
+      icon: "🏦",
+      label: "Banks",
+      hint: "Add banks, turn them on or off",
+      count: o?.banks,
+    },
+    {
+      path: "/admin/users",
+      icon: "👥",
+      label: "Users",
+      hint: "Create users and reset passwords",
+      count: o?.users,
+    },
+    {
+      path: "/admin/cases",
+      icon: "🛡️",
+      label: "Flagged cases",
+      hint: "Flagged payments from every bank",
+      count: o ? `${o.open_cases} open` : undefined,
+    },
+    {
+      path: "/admin/account",
+      icon: "👤",
+      label: "My account",
+      hint: "Your details and password",
+    },
+  ];
+
+  const stats = o && (
+    <div className="hero-stats">
+      {STATS.map(([key, label]) => (
+        <div className="hero-stat" key={key}>
+          <span>{label}</span>
+          <strong>{o[key]}</strong>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
-    <div className="page top">
-      <div className="card wide">
-        <StaffBar title="Admin" subtitle={name} />
-
-        {overview && (
-          <div className="stats">
-            {STATS.map(([key, label]) => (
-              <div className="stat" key={key}>
-                <span>{label}</span>
-                <strong>{overview[key]}</strong>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="tabs">
-          {TABS.map(([key, label]) => (
-            <button
-              key={key}
-              className={`tab ${tab === key ? "active" : ""}`}
-              onClick={() => setTab(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {tab === "banks" && <BanksPanel onChanged={refresh} />}
-        {tab === "staff" && <StaffPanel onChanged={refresh} />}
-        {tab === "users" && <UsersPanel onChanged={refresh} />}
-        {tab === "cases" && <Cases showBank />}
-        {tab === "account" && <ChangePassword />}
-      </div>
-    </div>
+    <HomeShell
+      name={name}
+      badge="Admin console"
+      intro={`Hello, ${name || "admin"}. You manage the banks, their operations teams and the users, and you can see every flagged payment.`}
+      heroExtra={stats}
+      heading="What would you like to manage?"
+      actions={actions}
+      profilePath="/admin/account"
+    />
   );
 }

@@ -1,0 +1,57 @@
+/* Stats inside the purple hero panel */
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.hero-stat {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.hero-stat span {
+  display: block;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.hero-stat strong {
+  display: block;
+  font-size: 22px;
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+@media (max-width: 800px) {
+  .hero-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Count badge on the right of an action button */
+.action-count {
+  margin-left: auto;
+  background: #ece8ff;
+  color: #3a2fb0;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.action.primary .action-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* Account page */
+.account-box {
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
