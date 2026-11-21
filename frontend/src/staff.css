@@ -1,15 +1,24 @@
-/* Stats inside the purple hero panel */
+/* Stat boxes inside the hero panel (admin and bank operations homes) */
 .hero-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .hero-stat {
-  background: rgba(255, 255, 255, 0.16);
+  padding: 11px 13px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 14px;
-  padding: 10px 12px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: transform 0.2s, background 0.2s;
+}
+
+.hero-stat:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .hero-stat span {
@@ -20,38 +29,37 @@
 
 .hero-stat strong {
   display: block;
-  font-size: 22px;
   margin-top: 2px;
+  font-size: 22px;
   line-height: 1.2;
 }
 
-@media (max-width: 800px) {
-  .hero-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* Count badge on the right of an action button */
+/* Count badge on an action button */
 .action-count {
-  margin-left: auto;
-  background: #ece8ff;
-  color: #3a2fb0;
+  padding: 3px 10px;
   font-size: 12px;
   font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 999px;
   white-space: nowrap;
+  color: #bcd1ff;
+  background: rgba(91, 140, 255, 0.2);
+  border-radius: 999px;
 }
 
 .action.primary .action-count {
-  background: rgba(255, 255, 255, 0.25);
   color: #ffffff;
+  background: rgba(255, 255, 255, 0.25);
 }
 
 /* Account page */
 .account-box {
-  max-width: 420px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-width: 440px;
+}
+
+@media (max-width: 900px) {
+  .hero-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

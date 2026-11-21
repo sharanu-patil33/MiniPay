@@ -17,7 +17,7 @@ export default function Ops() {
   const actions = [
     {
       path: "/ops/cases",
-      icon: "🛡️",
+      icon: "shield",
       label: "Flagged cases",
       hint: "Payments assigned to you for review",
       primary: true,
@@ -25,7 +25,7 @@ export default function Ops() {
     },
     {
       path: "/ops/account",
-      icon: "👤",
+      icon: "user",
       label: "My account",
       hint: "Your details and password",
     },

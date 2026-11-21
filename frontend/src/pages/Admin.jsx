@@ -28,7 +28,7 @@ export default function Admin() {
   const actions = [
     {
       path: "/admin/staff",
-      icon: "🧑‍💼",
+      icon: "briefcase",
       label: "Operations team",
       hint: "Create bank ops logins and reset passwords",
       primary: true,
@@ -36,28 +36,28 @@ export default function Admin() {
     },
     {
       path: "/admin/banks",
-      icon: "🏦",
+      icon: "bank",
       label: "Banks",
       hint: "Add banks, turn them on or off",
       count: o?.banks,
     },
     {
       path: "/admin/users",
-      icon: "👥",
+      icon: "users",
       label: "Users",
       hint: "Create users and reset passwords",
       count: o?.users,
     },
     {
       path: "/admin/cases",
-      icon: "🛡️",
+      icon: "shield",
       label: "Flagged cases",
       hint: "Flagged payments from every bank",
       count: o ? `${o.open_cases} open` : undefined,
     },
     {
       path: "/admin/account",
-      icon: "👤",
+      icon: "user",
       label: "My account",
       hint: "Your details and password",
     },

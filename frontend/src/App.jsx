@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import "./home.css";
 import "./staff.css";
+import LoadingBar from "./components/LoadingBar";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
@@ -35,27 +36,30 @@ const ADMIN = ["ADMIN"];
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
+    <>
+      <LoadingBar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
 
-      <Route path="/dashboard" element={<Protected roles={USER}><Dashboard /></Protected>} />
-      <Route path="/scan" element={<Protected roles={USER}><Scan /></Protected>} />
-      <Route path="/send" element={<Protected roles={USER}><SendMoney /></Protected>} />
-      <Route path="/balance" element={<Protected roles={USER}><Balance /></Protected>} />
-      <Route path="/history" element={<Protected roles={USER}><History /></Protected>} />
-      <Route path="/flagged" element={<Protected roles={USER}><Flagged /></Protected>} />
-      <Route path="/profile" element={<Protected roles={USER}><Profile /></Protected>} />
+        <Route path="/dashboard" element={<Protected roles={USER}><Dashboard /></Protected>} />
+        <Route path="/scan" element={<Protected roles={USER}><Scan /></Protected>} />
+        <Route path="/send" element={<Protected roles={USER}><SendMoney /></Protected>} />
+        <Route path="/balance" element={<Protected roles={USER}><Balance /></Protected>} />
+        <Route path="/history" element={<Protected roles={USER}><History /></Protected>} />
+        <Route path="/flagged" element={<Protected roles={USER}><Flagged /></Protected>} />
+        <Route path="/profile" element={<Protected roles={USER}><Profile /></Protected>} />
 
-      <Route path="/ops" element={<Protected roles={OPS}><Ops /></Protected>} />
-      <Route path="/ops/:section" element={<Protected roles={OPS}><OpsSection /></Protected>} />
+        <Route path="/ops" element={<Protected roles={OPS}><Ops /></Protected>} />
+        <Route path="/ops/:section" element={<Protected roles={OPS}><OpsSection /></Protected>} />
 
-      <Route path="/admin" element={<Protected roles={ADMIN}><Admin /></Protected>} />
-      <Route path="/admin/:section" element={<Protected roles={ADMIN}><AdminSection /></Protected>} />
+        <Route path="/admin" element={<Protected roles={ADMIN}><Admin /></Protected>} />
+        <Route path="/admin/:section" element={<Protected roles={ADMIN}><AdminSection /></Protected>} />
 
-      <Route path="*" element={<Home />} />
-    </Routes>
+        <Route path="*" element={<Home />} />
+      </Routes>
+    </>
   );
 }
 

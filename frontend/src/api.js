@@ -3,16 +3,45 @@ import { clearSession } from "./session";
 
 const api = axios.create({ baseURL: "http://localhost:8000" });
 
+// --- Loading indicator (UI only): counts the requests that are in flight ---
+let pending = 0;
+const listeners = new Set();
+
+function notify() {
+  listeners.forEach((fn) => fn(pending > 0));
+}
+
+export function subscribeLoading(fn) {
+  listeners.add(fn);
+  fn(pending > 0);
+  return () => listeners.delete(fn);
+}
+
+function requestStarted() {
+  pending += 1;
+  notify();
+}
+
+function requestFinished() {
+  pending = Math.max(0, pending - 1);
+  notify();
+}
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  requestStarted();
   return config;
 });
 
 // If the token expired or the account was deactivated, go back to the login page.
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    requestFinished();
+    return res;
+  },
   (err) => {
+    requestFinished();
     const url = err?.config?.url || "";
     const isAuthCall = url.includes("/auth/login") || url.includes("/auth/signup");
     if (err?.response?.status === 401 && !isAuthCall) {
