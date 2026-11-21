@@ -1,102 +1,71 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
-import { clearSession } from "../session";
-import { formatMoney, formatTime } from "../utils";
+import { getSession } from "../session";
+
+const ACTIONS = [
+  { path: "/scan", icon: "📷", label: "Scan QR", hint: "Pay by scanning a MiniPay QR code", primary: true },
+  { path: "/send", icon: "💸", label: "Send money", hint: "Search by name or phone number" },
+  { path: "/balance", icon: "👛", label: "Check balance", hint: "See how much you have" },
+  { path: "/history", icon: "🧾", label: "Transactions", hint: "Your payment history" },
+  { path: "/flagged", icon: "🛡️", label: "Flagged transactions", hint: "Payments our fraud checks held" },
+  { path: "/profile", icon: "👤", label: "Profile", hint: "Your details and your QR code" },
+];
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [me, setMe] = useState(null);
-  const [qr, setQr] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [error, setError] = useState("");
+  const [name, setName] = useState(getSession().name);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [meRes, qrRes, histRes] = await Promise.all([
-          api.get("/auth/me"),
-          api.get("/auth/me/qr"),
-          api.get("/payments/history"),
-        ]);
-        setMe(meRes.data);
-        setQr(qrRes.data);
-        setHistory(histRes.data);
-      } catch (err) {
-        if (err?.response?.status !== 401) setError("Could not load your account.");
-      }
-    };
-    load();
-  }, [navigate]);
+    api
+      .get("/auth/me")
+      .then((res) => setName(res.data.name))
+      .catch(() => {});
+  }, []);
 
-  const logout = () => {
-    clearSession();
-    navigate("/login");
-  };
-
-  if (error) return <div className="page"><p className="error">{error}</p></div>;
-  if (!me || !qr) return <div className="page"><p>Loading...</p></div>;
+  const initial = (name || "?").charAt(0).toUpperCase();
 
   return (
-    <div className="page">
-      <div className="card">
-        <h1>MiniPay</h1>
-        <h2>Hello, {me.name}</h2>
-
-        <div className="balance">
-          <span>Balance</span>
-          <strong>{formatMoney(me.balance)}</strong>
-        </div>
-
-        <button onClick={() => navigate("/send")}>Send money</button>
-        <button className="secondary" onClick={() => navigate("/flagged")}>
-          Flagged transactions
+    <div className="home">
+      <header className="home-top">
+        <div className="brand">MiniPay</div>
+        <button className="avatar-btn" onClick={() => navigate("/profile")} title="Profile">
+          {initial}
         </button>
+      </header>
 
-        <p className="hint">Phone: {me.phone}</p>
-        {me.bank_name && <p className="hint">Bank: {me.bank_name}</p>}
-        <p className="hint">
-          Your MiniPay code: <strong>{me.user_code}</strong>
-        </p>
+      <main className="home-main">
+        <section className="hero">
+          <span className="hero-badge">Fast payments · Live fraud protection</span>
+          <h1 className="hero-title">Welcome to MiniPay</h1>
+          <p>Hello, {name || "there"}. Send money in seconds. Every payment is checked by six fraud checks running at the same time.</p>
+          <div className="hero-pills">
+            <span>Amount</span>
+            <span>Location</span>
+            <span>Velocity</span>
+            <span>Behavior</span>
+            <span>Merchant</span>
+            <span>Device / IP</span>
+          </div>
+        </section>
 
-        <img className="qr" src={qr.qr_image} alt="Your MiniPay QR code" />
-        <p className="hint" style={{ textAlign: "center" }}>
-          Others can scan this QR to pay you.
-        </p>
-
-        <h3>Recent transactions</h3>
-        {history.length === 0 && <p className="hint">No transactions yet.</p>}
-        <div className="txn-list">
-          {history.map((t) => {
-            const moved = t.status === "COMPLETED"; // only completed payments moved money
-            return (
-              <div className="txn" key={t.id}>
-                <div>
-                  <strong>
-                    {t.direction === "sent" ? "To " : "From "}
-                    {t.other_party}
-                  </strong>
-                  <div className="hint">
-                    {formatTime(t.created_at)} ·{" "}
-                    <span className={moved ? "" : "tag bad"}>{t.status}</span>
-                    {t.note ? ` · ${t.note}` : ""}
-                  </div>
-                </div>
-                <div
-                  className={
-                    !moved ? "amt void" : t.direction === "sent" ? "amt out" : "amt in"
-                  }
-                >
-                  {moved ? (t.direction === "sent" ? "-" : "+") : ""}
-                  {formatMoney(t.amount)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <button className="secondary" onClick={logout}>Log out</button>
-      </div>
+        <aside className="actions-panel">
+          <h3>What would you like to do?</h3>
+          {ACTIONS.map((a) => (
+            <button
+              key={a.path}
+              className={`action ${a.primary ? "primary" : ""}`}
+              onClick={() => navigate(a.path)}
+            >
+              <span className="action-icon">{a.icon}</span>
+              <span>
+                {a.label}
+                <small>{a.hint}</small>
+              </span>
+            </button>
+          ))}
+        </aside>
+      </main>
     </div>
   );
 }

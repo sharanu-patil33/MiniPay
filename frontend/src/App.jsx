@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import "./home.css";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
@@ -6,6 +7,10 @@ import SendMoney from "./pages/SendMoney";
 import Flagged from "./pages/Flagged";
 import Admin from "./pages/Admin";
 import Ops from "./pages/Ops";
+import Scan from "./pages/Scan";
+import Balance from "./pages/Balance";
+import History from "./pages/History";
+import Profile from "./pages/Profile";
 import { getSession, homePathFor } from "./session";
 
 // Only the listed roles may open the page; everyone else is sent to their own home page.
@@ -21,6 +26,8 @@ function Home() {
   return <Navigate to={token ? homePathFor(role) : "/login"} replace />;
 }
 
+const USER = ["USER"];
+
 function App() {
   return (
     <Routes>
@@ -28,9 +35,13 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
 
-      <Route path="/dashboard" element={<Protected roles={["USER"]}><Dashboard /></Protected>} />
-      <Route path="/send" element={<Protected roles={["USER"]}><SendMoney /></Protected>} />
-      <Route path="/flagged" element={<Protected roles={["USER"]}><Flagged /></Protected>} />
+      <Route path="/dashboard" element={<Protected roles={USER}><Dashboard /></Protected>} />
+      <Route path="/scan" element={<Protected roles={USER}><Scan /></Protected>} />
+      <Route path="/send" element={<Protected roles={USER}><SendMoney /></Protected>} />
+      <Route path="/balance" element={<Protected roles={USER}><Balance /></Protected>} />
+      <Route path="/history" element={<Protected roles={USER}><History /></Protected>} />
+      <Route path="/flagged" element={<Protected roles={USER}><Flagged /></Protected>} />
+      <Route path="/profile" element={<Protected roles={USER}><Profile /></Protected>} />
 
       <Route path="/ops" element={<Protected roles={["OPS"]}><Ops /></Protected>} />
       <Route path="/admin" element={<Protected roles={["ADMIN"]}><Admin /></Protected>} />
