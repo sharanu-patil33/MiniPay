@@ -1,12 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api, { getErrorMessage } from "../api";
+import { saveSession } from "../session";
 
 export default function Signup() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", phone: "", password: "" });
+  const [banks, setBanks] = useState([]);
+  const [form, setForm] = useState({ name: "", phone: "", password: "", bank_id: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    api
+      .get("/banks")
+      .then((res) => setBanks(res.data))
+      .catch(() => setError("Could not load the bank list. Is the backend running?"));
+  }, []);
 
   const update = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -15,8 +24,11 @@ export default function Signup() {
     setError("");
     setLoading(true);
     try {
-      const res = await api.post("/auth/signup", form);
-      localStorage.setItem("token", res.data.access_token);
+      const res = await api.post("/auth/signup", {
+        ...form,
+        bank_id: Number(form.bank_id),
+      });
+      saveSession(res.data);
       navigate("/dashboard");
     } catch (err) {
       setError(getErrorMessage(err));
@@ -46,6 +58,14 @@ export default function Signup() {
           required
         />
 
+        <label>Your bank</label>
+        <select name="bank_id" value={form.bank_id} onChange={update} required>
+          <option value="" disabled>Select your bank</option>
+          {banks.map((b) => (
+            <option key={b.id} value={b.id}>{b.name}</option>
+          ))}
+        </select>
+
         <label>Password (min 6 characters)</label>
         <input
           name="password"
@@ -58,7 +78,7 @@ export default function Signup() {
 
         {error && <p className="error">{error}</p>}
 
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={loading || banks.length === 0}>
           {loading ? "Creating..." : "Sign up"}
         </button>
 

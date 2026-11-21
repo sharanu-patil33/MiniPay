@@ -4,42 +4,38 @@ import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import SendMoney from "./pages/SendMoney";
 import Flagged from "./pages/Flagged";
+import Admin from "./pages/Admin";
+import Ops from "./pages/Ops";
+import { getSession, homePathFor } from "./session";
 
-function Protected({ children }) {
-  return localStorage.getItem("token") ? children : <Navigate to="/login" replace />;
+// Only the listed roles may open the page; everyone else is sent to their own home page.
+function Protected({ roles, children }) {
+  const { token, role } = getSession();
+  if (!token) return <Navigate to="/login" replace />;
+  if (!roles.includes(role)) return <Navigate to={homePathFor(role)} replace />;
+  return children;
+}
+
+function Home() {
+  const { token, role } = getSession();
+  return <Navigate to={token ? homePathFor(role) : "/login"} replace />;
 }
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
-      <Route
-        path="/dashboard"
-        element={
-          <Protected>
-            <Dashboard />
-          </Protected>
-        }
-      />
-      <Route
-        path="/send"
-        element={
-          <Protected>
-            <SendMoney />
-          </Protected>
-        }
-      />
-      <Route
-        path="/flagged"
-        element={
-          <Protected>
-            <Flagged />
-          </Protected>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
+
+      <Route path="/dashboard" element={<Protected roles={["USER"]}><Dashboard /></Protected>} />
+      <Route path="/send" element={<Protected roles={["USER"]}><SendMoney /></Protected>} />
+      <Route path="/flagged" element={<Protected roles={["USER"]}><Flagged /></Protected>} />
+
+      <Route path="/ops" element={<Protected roles={["OPS"]}><Ops /></Protected>} />
+      <Route path="/admin" element={<Protected roles={["ADMIN"]}><Admin /></Protected>} />
+
+      <Route path="*" element={<Home />} />
     </Routes>
   );
 }

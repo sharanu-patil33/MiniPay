@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
+import { clearSession } from "../session";
 import { formatMoney, formatTime } from "../utils";
 
 export default function Dashboard() {
@@ -22,19 +23,14 @@ export default function Dashboard() {
         setQr(qrRes.data);
         setHistory(histRes.data);
       } catch (err) {
-        if (err?.response?.status === 401) {
-          localStorage.removeItem("token");
-          navigate("/login");
-        } else {
-          setError("Could not load your account.");
-        }
+        if (err?.response?.status !== 401) setError("Could not load your account.");
       }
     };
     load();
   }, [navigate]);
 
   const logout = () => {
-    localStorage.removeItem("token");
+    clearSession();
     navigate("/login");
   };
 
@@ -58,6 +54,7 @@ export default function Dashboard() {
         </button>
 
         <p className="hint">Phone: {me.phone}</p>
+        {me.bank_name && <p className="hint">Bank: {me.bank_name}</p>}
         <p className="hint">
           Your MiniPay code: <strong>{me.user_code}</strong>
         </p>

@@ -33,9 +33,9 @@ def verify_password(password: str, password_hash: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(subject_id: int, role: str = "USER") -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": str(user_id), "exp": expire}
+    payload = {"sub": str(subject_id), "role": role, "exp": expire}
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -48,17 +48,52 @@ def generate_unique_user_code(db: Session) -> str:
             return code
 
 
+def _decode(creds: HTTPAuthorizationCredentials) -> dict:
+    try:
+        return jwt.decode(creds.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
 def get_current_user(
     creds: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> models.User:
+    payload = _decode(creds)
+    # Tokens made before roles existed have no "role" and belong to customers.
+    if payload.get("role", "USER") != "USER":
+        raise HTTPException(status_code=403, detail="Staff accounts cannot use customer features")
     try:
-        payload = jwt.decode(creds.credentials, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = int(payload["sub"])
-    except (jwt.PyJWTError, KeyError, ValueError):
+    except (KeyError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     user = db.get(models.User, user_id)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
+
+
+def get_current_staff(
+    creds: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> models.Staff:
+    payload = _decode(creds)
+    if payload.get("role") not in ("ADMIN", "OPS"):
+        raise HTTPException(status_code=403, detail="Staff access required")
+    try:
+        staff_id = int(payload["sub"])
+    except (KeyError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    # Checked in the database on every request, so a deactivated member is locked out at once.
+    staff = db.get(models.Staff, staff_id)
+    if not staff or not staff.is_active or staff.role != payload["role"]:
+        raise HTTPException(status_code=401, detail="Account not found or deactivated")
+    return staff
+
+
+def require_admin(staff: models.Staff = Depends(get_current_staff)) -> models.Staff:
+    if staff.role != "ADMIN":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return staff

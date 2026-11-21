@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api, { getErrorMessage } from "../api";
+import { homePathFor, saveSession } from "../session";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ phone: "", password: "" });
+  const [form, setForm] = useState({ identifier: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -15,9 +16,12 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      const res = await api.post("/auth/login", form);
-      localStorage.setItem("token", res.data.access_token);
-      navigate("/dashboard");
+      const res = await api.post("/auth/login", {
+        identifier: form.identifier.trim(),
+        password: form.password,
+      });
+      saveSession(res.data);
+      navigate(homePathFor(res.data.role), { replace: true });
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -31,15 +35,12 @@ export default function Login() {
         <h1>MiniPay</h1>
         <h2>Log in</h2>
 
-        <label>Phone number</label>
+        <label>Phone number or username</label>
         <input
-          name="phone"
-          value={form.phone}
+          name="identifier"
+          value={form.identifier}
           onChange={update}
-          inputMode="numeric"
-          maxLength={10}
-          pattern="\d{10}"
-          title="Enter a 10 digit phone number"
+          autoComplete="username"
           required
         />
 
@@ -49,6 +50,7 @@ export default function Login() {
           type="password"
           value={form.password}
           onChange={update}
+          autoComplete="current-password"
           required
         />
 
@@ -58,6 +60,9 @@ export default function Login() {
           {loading ? "Logging in..." : "Log in"}
         </button>
 
+        <p className="hint small">
+          Customers log in with their phone number. Bank staff and admins use their username.
+        </p>
         <p className="hint">
           New here? <Link to="/signup">Create an account</Link>
         </p>

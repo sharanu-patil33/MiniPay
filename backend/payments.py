@@ -1,3 +1,5 @@
+import random
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
@@ -6,7 +8,7 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 from database import get_db
-from fraud_engine import run_fraud_checks
+from fraud_engine import run_fraud_checks, utcnow
 from security import get_current_user
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -20,6 +22,38 @@ MESSAGES = {
 
 def add_event(db: Session, txn_id: int, event_type: str, details: str = ""):
     db.add(models.TransactionEvent(transaction_id=txn_id, event_type=event_type, details=details))
+
+
+def pick_ops_member(db: Session, bank_id):
+    """Pick one active ops member of this bank at random (None if the bank has no active member)."""
+    if bank_id is None:
+        return None
+    members = (
+        db.query(models.Staff)
+        .filter(
+            models.Staff.role == "OPS",
+            models.Staff.is_active.is_(True),
+            models.Staff.bank_id == bank_id,
+        )
+        .all()
+    )
+    return random.choice(members) if members else None
+
+
+def open_case(db: Session, txn: models.Transaction, sender: models.User, decision: str, summary: str):
+    """Create the flagged case for the sender's bank and give it to a random ops member."""
+    member = pick_ops_member(db, sender.bank_id)
+    db.add(
+        models.FraudCase(
+            transaction_id=txn.id,
+            reason=f"{decision}: {summary}"[:255],
+            status="OPEN",
+            bank_id=sender.bank_id,
+            assigned_to=member.id if member else None,
+            assigned_at=utcnow() if member else None,
+        )
+    )
+    return member
 
 
 def checks_for(db: Session, txn_id: int) -> list[dict]:
@@ -184,15 +218,9 @@ def send_money(
     )
 
     if outcome["decision"] == "BLOCK":
-        # Flagged transaction: no money moves
+        # Flagged transaction: no money moves, and the sender's bank team gets the case
         txn.status = "BLOCKED"
-        db.add(
-            models.FraudCase(
-                transaction_id=txn.id,
-                reason=f"BLOCK: {outcome['summary']}"[:255],
-                status="OPEN",
-            )
-        )
+        member = open_case(db, txn, me, "BLOCK", outcome["summary"])
         db.add(
             models.Alert(
                 transaction_id=txn.id,
@@ -201,34 +229,35 @@ def send_money(
                 message=f"Your payment of Rs {data.amount} to {receiver.name} was blocked by fraud checks."[:255],
             )
         )
+        assigned = f"assigned to {member.name}" if member else "waiting for an operations member"
         db.add(
             models.Alert(
                 transaction_id=txn.id,
                 user_id=None,
                 role="ops",
-                message=f"Flagged transaction #{txn.id}: BLOCK, risk score {outcome['final_score']}"[:255],
+                message=f"Flagged transaction #{txn.id}: BLOCK, risk score {outcome['final_score']}, {assigned}"[:255],
             )
         )
-        add_event(db, txn.id, "BLOCKED", "Blocked by fraud checks, no money moved")
+        add_event(
+            db,
+            txn.id,
+            "BLOCKED",
+            f"Blocked by fraud checks, no money moved; case {assigned}",
+        )
         db.commit()
         db.refresh(txn)
         return build_response(db, txn)
 
     if outcome["decision"] == "REVIEW":
-        # Payment goes through, but a case is opened for review
-        db.add(
-            models.FraudCase(
-                transaction_id=txn.id,
-                reason=f"REVIEW: {outcome['summary']}"[:255],
-                status="OPEN",
-            )
-        )
+        # Payment goes through, but a case is opened for the sender's bank team
+        member = open_case(db, txn, me, "REVIEW", outcome["summary"])
+        assigned = f"assigned to {member.name}" if member else "waiting for an operations member"
         db.add(
             models.Alert(
                 transaction_id=txn.id,
                 user_id=None,
                 role="ops",
-                message=f"Transaction #{txn.id} needs review, risk score {outcome['final_score']}"[:255],
+                message=f"Transaction #{txn.id} needs review, risk score {outcome['final_score']}, {assigned}"[:255],
             )
         )
 
