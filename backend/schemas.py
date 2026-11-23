@@ -1,3 +1,4 @@
+
 from datetime import datetime
 from decimal import Decimal
 
@@ -8,11 +9,16 @@ class SignupRequest(BaseModel):
     name: str = Field(min_length=2, max_length=100)
     phone: str = Field(pattern=r"^\d{10}$")
     password: str = Field(min_length=6, max_length=64)
+    pin: str = Field(pattern=r"^(\d{4}|\d{6})$")
 
 
 class LoginRequest(BaseModel):
     phone: str = Field(pattern=r"^\d{10}$")
     password: str = Field(min_length=1, max_length=64)
+
+
+class SetPinRequest(BaseModel):
+    pin: str = Field(pattern=r"^(\d{4}|\d{6})$")
 
 
 class UserOut(BaseModel):
@@ -41,7 +47,7 @@ class MeOut(BaseModel):
 class QrOut(BaseModel):
     user_code: str
     qr_payload: str
-    qr_image: str  # data URL, can be used directly as <img src="...">
+    qr_image: str
 
 
 class UserSearchOut(BaseModel):
@@ -54,6 +60,7 @@ class UserSearchOut(BaseModel):
 class PaymentRequest(BaseModel):
     receiver_id: int
     amount: Decimal = Field(gt=0, le=100000, max_digits=12, decimal_places=2)
+    pin: str = Field(pattern=r"^(\d{4}|\d{6})$")
     note: str | None = Field(default=None, max_length=255)
     idempotency_key: str = Field(min_length=8, max_length=64)
     device_id: str | None = Field(default=None, max_length=100)
@@ -90,7 +97,7 @@ class PaymentOut(BaseModel):
 
 class TransactionOut(BaseModel):
     id: int
-    direction: str  # "sent" or "received"
+    direction: str
     other_party: str
     amount: float
     status: str

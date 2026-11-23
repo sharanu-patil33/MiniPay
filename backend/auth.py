@@ -1,3 +1,4 @@
+
 import base64
 import io
 
@@ -29,10 +30,12 @@ def signup(data: schemas.SignupRequest, db: Session = Depends(get_db)):
         name=data.name.strip(),
         phone=data.phone,
         password_hash=hash_password(data.password),
+        pin_hash=hash_password(data.pin),
         user_code=generate_unique_user_code(db),
     )
     db.add(user)
-    db.flush()  # gives user.id before commit
+    db.flush()
+
     db.add(models.Account(user_id=user.id))
     db.commit()
     db.refresh(user)
@@ -55,6 +58,24 @@ def login(data: schemas.LoginRequest, db: Session = Depends(get_db)):
         "token_type": "bearer",
         "user": user,
     }
+
+
+@router.post("/set-pin")
+def set_pin(
+    data: schemas.SetPinRequest,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    if user.pin_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="Payment PIN is already set",
+        )
+
+    user.pin_hash = hash_password(data.pin)
+    db.commit()
+
+    return {"message": "Payment PIN set successfully"}
 
 
 @router.get("/me", response_model=schemas.MeOut)

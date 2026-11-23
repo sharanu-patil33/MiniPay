@@ -1,6 +1,7 @@
+
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 from sqlalchemy.orm import Session
 
 from database import get_db, engine, Base
@@ -9,7 +10,23 @@ from auth import router as auth_router
 from users import router as users_router
 from payments import router as payments_router
 
+
+# Create tables that do not already exist.
 Base.metadata.create_all(bind=engine)
+
+
+# Add the payment PIN column to existing databases if it is missing.
+inspector = inspect(engine)
+user_columns = {
+    column["name"] for column in inspector.get_columns("users")
+}
+
+if "pin_hash" not in user_columns:
+    with engine.begin() as connection:
+        connection.execute(
+            text("ALTER TABLE users ADD COLUMN pin_hash VARCHAR(255) NULL")
+        )
+
 
 app = FastAPI(title="MiniPay - UPI Fraud Detection API")
 

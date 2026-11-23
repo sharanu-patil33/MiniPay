@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
@@ -7,7 +8,7 @@ import models
 import schemas
 from database import get_db
 from fraud_engine import run_fraud_checks
-from security import get_current_user
+from security import get_current_user, verify_password
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
@@ -72,7 +73,20 @@ def send_money(
     db: Session = Depends(get_db),
     me: models.User = Depends(get_current_user),
 ):
-    # 1. Idempotency: the same key always returns the same result, never a second payment.
+    # 1. Verify payment PIN before creating or processing a transaction.
+    if not me.pin_hash:
+        raise HTTPException(
+            status_code=403,
+            detail="Payment PIN not set. Please set your PIN first.",
+        )
+
+    if not verify_password(data.pin, me.pin_hash):
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect payment PIN",
+        )
+
+    # 2. Idempotency: the same key always returns the same result.
     existing = (
         db.query(models.Transaction)
         .filter(models.Transaction.idempotency_key == data.idempotency_key)
@@ -83,14 +97,15 @@ def send_money(
             raise HTTPException(status_code=409, detail="Request key already used")
         return build_response(db, existing)
 
-    # 2. Basic validation
+    # 3. Basic validation
     if data.receiver_id == me.id:
         raise HTTPException(status_code=400, detail="You cannot send money to yourself")
+
     receiver = db.get(models.User, data.receiver_id)
     if not receiver:
         raise HTTPException(status_code=404, detail="Receiver not found")
 
-    # 3. Create the transaction record
+    # 4. Create the transaction record
     location = None
     if data.latitude is not None and data.longitude is not None:
         location = f"{data.latitude:.5f},{data.longitude:.5f}"
@@ -107,10 +122,10 @@ def send_money(
         device_id=data.device_id,
     )
     db.add(txn)
+
     try:
         db.flush()
     except IntegrityError:
-        # Two identical requests arrived at the same moment; return the first one.
         db.rollback()
         existing = (
             db.query(models.Transaction)
@@ -123,7 +138,7 @@ def send_money(
 
     add_event(db, txn.id, "INITIATED", f"amount={data.amount}")
 
-    # 4. Lock both accounts (always in id order, so two payments cannot deadlock)
+    # 5. Lock both accounts in user ID order.
     ids = sorted([me.id, receiver.id])
     accounts = (
         db.query(models.Account)
@@ -136,7 +151,7 @@ def send_money(
     sender_acc = by_user[me.id]
     receiver_acc = by_user[receiver.id]
 
-    # 5. Balance check
+    # 6. Balance check
     if sender_acc.balance < data.amount:
         txn.status = "FAILED"
         add_event(db, txn.id, "FAILED", "Insufficient balance")
@@ -147,7 +162,7 @@ def send_money(
     txn.status = "VALIDATED"
     add_event(db, txn.id, "VALIDATED", "Receiver and balance verified")
 
-    # 6. Fraud assessment: six checks run at the same time, before any money moves
+    # 7. Fraud assessment: six checks run concurrently before money moves.
     ctx = {
         "txn_id": txn.id,
         "sender_id": me.id,
@@ -159,9 +174,11 @@ def send_money(
         "latitude": data.latitude,
         "longitude": data.longitude,
     }
+
     outcome = run_fraud_checks(ctx)
 
     txn.status = "FRAUD_ASSESSMENT"
+
     for r in outcome["results"]:
         db.add(
             models.RiskResult(
@@ -174,8 +191,10 @@ def send_money(
                 ended_at=r["ended_at"],
             )
         )
+
     txn.risk_score = outcome["final_score"]
     txn.decision = outcome["decision"]
+
     add_event(
         db,
         txn.id,
@@ -184,8 +203,8 @@ def send_money(
     )
 
     if outcome["decision"] == "BLOCK":
-        # Flagged transaction: no money moves
         txn.status = "BLOCKED"
+
         db.add(
             models.FraudCase(
                 transaction_id=txn.id,
@@ -193,6 +212,7 @@ def send_money(
                 status="OPEN",
             )
         )
+
         db.add(
             models.Alert(
                 transaction_id=txn.id,
@@ -201,6 +221,7 @@ def send_money(
                 message=f"Your payment of Rs {data.amount} to {receiver.name} was blocked by fraud checks."[:255],
             )
         )
+
         db.add(
             models.Alert(
                 transaction_id=txn.id,
@@ -209,13 +230,13 @@ def send_money(
                 message=f"Flagged transaction #{txn.id}: BLOCK, risk score {outcome['final_score']}"[:255],
             )
         )
+
         add_event(db, txn.id, "BLOCKED", "Blocked by fraud checks, no money moved")
         db.commit()
         db.refresh(txn)
         return build_response(db, txn)
 
     if outcome["decision"] == "REVIEW":
-        # Payment goes through, but a case is opened for review
         db.add(
             models.FraudCase(
                 transaction_id=txn.id,
@@ -223,6 +244,7 @@ def send_money(
                 status="OPEN",
             )
         )
+
         db.add(
             models.Alert(
                 transaction_id=txn.id,
@@ -232,7 +254,7 @@ def send_money(
             )
         )
 
-    # 7. Move the money
+    # 8. Move the money.
     sender_acc.balance = sender_acc.balance - data.amount
     txn.status = "DEBIT_CONFIRMED"
     add_event(db, txn.id, "DEBIT_CONFIRMED", "Sender debited")
@@ -246,7 +268,6 @@ def send_money(
     return build_response(db, txn)
 
 
-# Fixed paths must come before "/{transaction_id}"
 @router.get("/history", response_model=list[schemas.TransactionOut])
 def history(
     db: Session = Depends(get_db),
@@ -254,21 +275,33 @@ def history(
 ):
     rows = (
         db.query(models.Transaction)
-        .filter(or_(models.Transaction.sender_id == me.id, models.Transaction.receiver_id == me.id))
+        .filter(
+            or_(
+                models.Transaction.sender_id == me.id,
+                models.Transaction.receiver_id == me.id,
+            )
+        )
         .order_by(models.Transaction.id.desc())
         .limit(50)
         .all()
     )
 
-    other_ids = {t.receiver_id if t.sender_id == me.id else t.sender_id for t in rows}
+    other_ids = {
+        t.receiver_id if t.sender_id == me.id else t.sender_id for t in rows
+    }
+
     names = {}
     if other_ids:
-        names = {u.id: u.name for u in db.query(models.User).filter(models.User.id.in_(other_ids))}
+        names = {
+            u.id: u.name
+            for u in db.query(models.User).filter(models.User.id.in_(other_ids))
+        }
 
     result = []
     for t in rows:
         sent = t.sender_id == me.id
         other_id = t.receiver_id if sent else t.sender_id
+
         result.append(
             {
                 "id": t.id,
@@ -280,6 +313,7 @@ def history(
                 "created_at": t.created_at,
             }
         )
+
     return result
 
 
@@ -290,7 +324,10 @@ def flagged(
 ):
     rows = (
         db.query(models.FraudCase, models.Transaction)
-        .join(models.Transaction, models.Transaction.id == models.FraudCase.transaction_id)
+        .join(
+            models.Transaction,
+            models.Transaction.id == models.FraudCase.transaction_id,
+        )
         .filter(models.Transaction.sender_id == me.id)
         .order_by(models.FraudCase.id.desc())
         .limit(50)
@@ -300,6 +337,7 @@ def flagged(
     result = []
     for case, txn in rows:
         receiver = db.get(models.User, txn.receiver_id)
+
         result.append(
             {
                 "transaction_id": txn.id,
@@ -314,6 +352,7 @@ def flagged(
                 "checks": checks_for(db, txn.id),
             }
         )
+
     return result
 
 
@@ -338,6 +377,8 @@ def payment_detail(
     me: models.User = Depends(get_current_user),
 ):
     txn = db.get(models.Transaction, transaction_id)
+
     if not txn or txn.sender_id != me.id:
         raise HTTPException(status_code=404, detail="Transaction not found")
+
     return build_response(db, txn)
