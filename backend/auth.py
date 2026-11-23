@@ -30,7 +30,10 @@ def signup(data: schemas.SignupRequest, db: Session = Depends(get_db)):
     if not bank or not bank.is_active:
         raise HTTPException(status_code=400, detail="Please choose a valid bank")
 
-    existing = db.query(models.User).filter(models.User.phone == data.phone).first()
+    existing = db.query(models.User).filter(
+        models.User.phone == data.phone
+    ).first()
+
     if existing:
         raise HTTPException(status_code=400, detail="Phone number already registered")
 
@@ -38,12 +41,14 @@ def signup(data: schemas.SignupRequest, db: Session = Depends(get_db)):
         name=data.name.strip(),
         phone=data.phone,
         password_hash=hash_password(data.password),
+        pin_hash=hash_password(data.pin),
         user_code=generate_unique_user_code(db),
         bank_id=bank.id,
     )
 
     db.add(user)
     db.flush()
+
     db.add(models.Account(user_id=user.id))
     db.commit()
     db.refresh(user)
@@ -100,6 +105,24 @@ def login(data: schemas.LoginRequest, db: Session = Depends(get_db)):
         "bank_name": bank_name_of(db, staff.bank_id),
         "user": None,
     }
+
+
+@router.post("/set-pin")
+def set_pin(
+    data: schemas.SetPinRequest,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    if user.pin_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="Payment PIN is already set",
+        )
+
+    user.pin_hash = hash_password(data.pin)
+    db.commit()
+
+    return {"message": "Payment PIN set successfully"}
 
 
 @router.get("/me", response_model=schemas.MeOut)

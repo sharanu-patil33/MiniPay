@@ -1,6 +1,16 @@
+
 from datetime import datetime
+
 from sqlalchemy import (
-    Column, Integer, String, Numeric, Float, DateTime, ForeignKey, Text, Boolean
+    Column,
+    Integer,
+    String,
+    Numeric,
+    Float,
+    DateTime,
+    ForeignKey,
+    Text,
+    Boolean,
 )
 from sqlalchemy.dialects.mysql import DATETIME
 from sqlalchemy.orm import relationship
@@ -25,6 +35,7 @@ class User(Base):
     name = Column(String(100), nullable=False)
     phone = Column(String(15), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
+    pin_hash = Column(String(255), nullable=True)
     user_code = Column(String(20), unique=True, nullable=False, index=True)
     bank_id = Column(Integer, ForeignKey("banks.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -34,6 +45,7 @@ class User(Base):
 
 class Staff(Base):
     """Admin and bank operations team members (they log in with a username)."""
+
     __tablename__ = "staff"
 
     id = Column(Integer, primary_key=True)
@@ -42,8 +54,8 @@ class Staff(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(10), nullable=False, default="OPS")  # ADMIN or OPS
     is_active = Column(Boolean, nullable=False, default=True)
-    bank_id = Column(Integer, ForeignKey("banks.id"))  # OPS members belong to one bank; admin has none
-    created_by = Column(Integer)  # id of the admin who created this member
+    bank_id = Column(Integer, ForeignKey("banks.id"))
+    created_by = Column(Integer)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -52,7 +64,7 @@ class Account(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
-    balance = Column(Numeric(12, 2), nullable=False, default=10000)  # simulated money
+    balance = Column(Numeric(12, 2), nullable=False, default=10000)
 
     user = relationship("User", back_populates="account")
 
@@ -67,7 +79,7 @@ class Transaction(Base):
     amount = Column(Numeric(12, 2), nullable=False)
     note = Column(String(255))
     status = Column(String(30), nullable=False, default="INITIATED")
-    decision = Column(String(10))          # APPROVE / REVIEW / BLOCK
+    decision = Column(String(10))
     risk_score = Column(Float)
     ip_address = Column(String(45))
     location = Column(String(100))
@@ -78,27 +90,35 @@ class Transaction(Base):
 
 
 class RiskResult(Base):
-    """One row per fraud check (6 rows per transaction)."""
     __tablename__ = "risk_results"
 
     id = Column(Integer, primary_key=True)
-    transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=False, index=True)
-    check_name = Column(String(30), nullable=False)  # amount, location, velocity, behavior, merchant, device_ip
+    transaction_id = Column(
+        Integer,
+        ForeignKey("transactions.id"),
+        nullable=False,
+        index=True,
+    )
+    check_name = Column(String(30), nullable=False)
     score = Column(Float, nullable=False)
     reason = Column(String(255))
     thread_name = Column(String(100))
-    started_at = Column(DATETIME(fsp=6))   # microsecond precision
+    started_at = Column(DATETIME(fsp=6))
     ended_at = Column(DATETIME(fsp=6))
 
     transaction = relationship("Transaction", back_populates="risk_results")
 
 
 class TransactionEvent(Base):
-    """Append-only history of every state change."""
     __tablename__ = "transaction_events"
 
     id = Column(Integer, primary_key=True)
-    transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=False, index=True)
+    transaction_id = Column(
+        Integer,
+        ForeignKey("transactions.id"),
+        nullable=False,
+        index=True,
+    )
     event_type = Column(String(40), nullable=False)
     details = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -106,14 +126,20 @@ class TransactionEvent(Base):
 
 class FraudCase(Base):
     """A blocked or reviewed transaction becomes a flagged case for the sender's bank."""
+
     __tablename__ = "fraud_cases"
 
     id = Column(Integer, primary_key=True)
-    transaction_id = Column(Integer, ForeignKey("transactions.id"), unique=True, nullable=False)
+    transaction_id = Column(
+        Integer,
+        ForeignKey("transactions.id"),
+        unique=True,
+        nullable=False,
+    )
     reason = Column(String(255))
     status = Column(String(20), nullable=False, default="OPEN")
-    bank_id = Column(Integer, ForeignKey("banks.id"))        # the sender's bank
-    assigned_to = Column(Integer, ForeignKey("staff.id"))    # the ops member chosen at random
+    bank_id = Column(Integer, ForeignKey("banks.id"))
+    assigned_to = Column(Integer, ForeignKey("staff.id"))
     assigned_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -124,6 +150,6 @@ class Alert(Base):
     id = Column(Integer, primary_key=True)
     transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"))
-    role = Column(String(20), nullable=False)  # sender / receiver / ops
+    role = Column(String(20), nullable=False)
     message = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

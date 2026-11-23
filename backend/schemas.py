@@ -1,29 +1,44 @@
+
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    field_validator,
+    model_validator,
+)
 
+
+# ---------------- Authentication ----------------
 
 class SignupRequest(BaseModel):
     name: str = Field(min_length=2, max_length=100)
     phone: str = Field(pattern=r"^\d{10}$")
     password: str = Field(min_length=6, max_length=64)
     bank_id: int
+    pin: str = Field(pattern=r"^(\d{4}|\d{6})$")
 
 
 class LoginRequest(BaseModel):
     # Users type their phone number, staff type their username.
     identifier: str | None = Field(default=None, max_length=100)
-    phone: str | None = Field(default=None, max_length=15)  # old field name, still accepted
+    phone: str | None = Field(default=None, max_length=15)
     password: str = Field(min_length=1, max_length=64)
 
     @model_validator(mode="after")
     def need_identifier(self):
         value = (self.identifier or self.phone or "").strip()
+
         if not value:
             raise ValueError("Enter your phone number or username")
+
         self.identifier = value
         return self
+
+
+class SetPinRequest(BaseModel):
+    pin: str = Field(pattern=r"^(\d{4}|\d{6})$")
 
 
 class UserOut(BaseModel):
@@ -38,10 +53,10 @@ class UserOut(BaseModel):
 class TokenOut(BaseModel):
     access_token: str
     token_type: str
-    role: str = "USER"          # USER, OPS or ADMIN
+    role: str = "USER"
     name: str | None = None
     bank_name: str | None = None
-    user: UserOut | None = None  # only filled for customers
+    user: UserOut | None = None
 
 
 class MeOut(BaseModel):
@@ -56,7 +71,7 @@ class MeOut(BaseModel):
 class QrOut(BaseModel):
     user_code: str
     qr_payload: str
-    qr_image: str  # data URL, can be used directly as <img src="...">
+    qr_image: str
 
 
 class UserSearchOut(BaseModel):
@@ -66,9 +81,17 @@ class UserSearchOut(BaseModel):
     user_code: str
 
 
+# ---------------- Payments ----------------
+
 class PaymentRequest(BaseModel):
     receiver_id: int
-    amount: Decimal = Field(gt=0, le=100000, max_digits=12, decimal_places=2)
+    amount: Decimal = Field(
+        gt=0,
+        le=100000,
+        max_digits=12,
+        decimal_places=2,
+    )
+    pin: str = Field(pattern=r"^(\d{4}|\d{6})$")
     note: str | None = Field(default=None, max_length=255)
     idempotency_key: str = Field(min_length=8, max_length=64)
     device_id: str | None = Field(default=None, max_length=100)
@@ -78,7 +101,10 @@ class PaymentRequest(BaseModel):
     @model_validator(mode="after")
     def location_pair(self):
         if (self.latitude is None) != (self.longitude is None):
-            raise ValueError("Send both latitude and longitude, or neither")
+            raise ValueError(
+                "Send both latitude and longitude, or neither"
+            )
+
         return self
 
 
@@ -100,12 +126,12 @@ class PaymentOut(BaseModel):
     current_balance: float
     message: str
     created_at: datetime
-    checks: list[CheckOut] = []
+    checks: list[CheckOut] = Field(default_factory=list)
 
 
 class TransactionOut(BaseModel):
     id: int
-    direction: str  # "sent" or "received"
+    direction: str
     other_party: str
     amount: float
     status: str
@@ -123,7 +149,7 @@ class FlaggedOut(BaseModel):
     reason: str | None
     case_status: str
     created_at: datetime
-    checks: list[CheckOut] = []
+    checks: list[CheckOut] = Field(default_factory=list)
 
 
 class AlertOut(BaseModel):
@@ -135,6 +161,7 @@ class AlertOut(BaseModel):
 
 
 # ---------------- Banks ----------------
+
 class BankOut(BaseModel):
     id: int
     name: str
@@ -146,7 +173,11 @@ class BankOut(BaseModel):
 
 class BankCreate(BaseModel):
     name: str = Field(min_length=2, max_length=100)
-    code: str = Field(min_length=2, max_length=10, pattern=r"^[A-Za-z0-9]+$")
+    code: str = Field(
+        min_length=2,
+        max_length=10,
+        pattern=r"^[A-Za-z0-9]+$",
+    )
 
     @field_validator("code")
     @classmethod
@@ -168,18 +199,24 @@ class BankAdminOut(BaseModel):
 
 
 # ---------------- Staff and admin ----------------
+
 class StaffCreate(BaseModel):
     name: str = Field(min_length=2, max_length=100)
-    username: str = Field(min_length=3, max_length=30, pattern=r"^[A-Za-z0-9_.-]+$")
+    username: str = Field(
+        min_length=3,
+        max_length=30,
+        pattern=r"^[A-Za-z0-9_.-]+$",
+    )
     password: str = Field(min_length=8, max_length=64)
     bank_id: int
 
     @field_validator("username")
     @classmethod
     def not_only_digits(cls, value: str) -> str:
-        # An all-digit login is treated as a customer phone number
+        # An all-digit login is treated as a customer phone number.
         if value.isdigit():
             raise ValueError("Username must contain at least one letter")
+
         return value
 
 
@@ -231,6 +268,7 @@ class OverviewOut(BaseModel):
 
 
 # ---------------- Operations cases ----------------
+
 class CaseOut(BaseModel):
     case_id: int
     transaction_id: int
@@ -245,4 +283,4 @@ class CaseOut(BaseModel):
     reason: str | None
     assigned_to: str | None
     created_at: datetime
-    checks: list[CheckOut] = []
+    checks: list[CheckOut] = Field(default_factory=list)
