@@ -1,3 +1,4 @@
+import math
 import os
 import secrets
 import string
@@ -21,6 +22,10 @@ if not SECRET_KEY:
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+# PIN protection settings (change these to tune it)
+PIN_MAX_ATTEMPTS = 3      # wrong PINs in a row before the PIN is locked
+PIN_LOCK_MINUTES = 15     # how long the lock lasts
 
 bearer_scheme = HTTPBearer()
 
@@ -97,3 +102,59 @@ def require_admin(staff: models.Staff = Depends(get_current_staff)) -> models.St
     if staff.role != "ADMIN":
         raise HTTPException(status_code=403, detail="Admin access required")
     return staff
+
+
+# ---------------- PIN checking ----------------
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def pin_locked_seconds(user: models.User) -> int:
+    """Seconds left on a PIN lock (0 when the PIN is not locked)."""
+    if user.pin_locked_until and user.pin_locked_until > _utcnow():
+        return int((user.pin_locked_until - _utcnow()).total_seconds()) + 1
+    return 0
+
+
+def check_pin_or_raise(db: Session, user: models.User, pin: str) -> None:
+    """Verify the user's PIN, count wrong tries and lock the PIN after too many.
+
+    428 = no PIN set yet, 423 = PIN locked, 400 = wrong PIN.
+    (Never 401: the app logs people out when it sees a 401.)
+    """
+    # Lock the user row so two simultaneous wrong tries cannot both be counted as the first one.
+    db.refresh(user, with_for_update=True)
+
+    if not user.pin_hash:
+        raise HTTPException(status_code=428, detail="Set your PIN first")
+
+    remaining = pin_locked_seconds(user)
+    if remaining > 0:
+        minutes = max(1, math.ceil(remaining / 60))
+        raise HTTPException(
+            status_code=423,
+            detail=f"PIN locked after too many wrong attempts. Try again in {minutes} minute(s).",
+        )
+
+    if not verify_password(pin, user.pin_hash):
+        user.pin_failed_attempts = (user.pin_failed_attempts or 0) + 1
+        if user.pin_failed_attempts >= PIN_MAX_ATTEMPTS:
+            user.pin_locked_until = _utcnow() + timedelta(minutes=PIN_LOCK_MINUTES)
+            user.pin_failed_attempts = 0
+            db.commit()
+            raise HTTPException(
+                status_code=423,
+                detail=f"Incorrect PIN. Too many wrong attempts, your PIN is locked for {PIN_LOCK_MINUTES} minutes.",
+            )
+        left = PIN_MAX_ATTEMPTS - user.pin_failed_attempts
+        db.commit()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Incorrect PIN. {left} attempt{'s' if left != 1 else ''} left.",
+        )
+
+    # Correct PIN: clear any earlier wrong tries
+    if user.pin_failed_attempts or user.pin_locked_until:
+        user.pin_failed_attempts = 0
+        user.pin_locked_until = None
+        db.commit()

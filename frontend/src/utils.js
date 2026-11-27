@@ -1,5 +1,7 @@
 export function formatMoney(value) {
-  return "₹" + Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2 });
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "₹ --";
+  return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2 });
 }
 
 // The backend sends UTC times without a "Z", so add it before converting to local time.

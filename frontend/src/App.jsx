@@ -1,11 +1,13 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import "./home.css";
 import "./staff.css";
+import "./pin.css";
 import LoadingBar from "./components/LoadingBar";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import SendMoney from "./pages/SendMoney";
+import SetPin from "./pages/SetPin";
 import Flagged from "./pages/Flagged";
 import Admin from "./pages/Admin";
 import AdminSection from "./pages/AdminSection";
@@ -46,6 +48,7 @@ function App() {
         <Route path="/dashboard" element={<Protected roles={USER}><Dashboard /></Protected>} />
         <Route path="/scan" element={<Protected roles={USER}><Scan /></Protected>} />
         <Route path="/send" element={<Protected roles={USER}><SendMoney /></Protected>} />
+        <Route path="/pin" element={<Protected roles={USER}><SetPin /></Protected>} />
         <Route path="/balance" element={<Protected roles={USER}><Balance /></Protected>} />
         <Route path="/history" element={<Protected roles={USER}><History /></Protected>} />
         <Route path="/flagged" element={<Protected roles={USER}><Flagged /></Protected>} />

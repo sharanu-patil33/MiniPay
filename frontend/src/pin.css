@@ -1,0 +1,27 @@
+.pin-input {
+  text-align: center;
+  font-size: 28px;
+  letter-spacing: 14px;
+  padding: 14px 12px 14px 26px; /* the extra left space balances the trailing letter spacing */
+  font-variant-numeric: tabular-nums;
+}
+
+.pin-input::placeholder {
+  letter-spacing: 8px;
+}
+
+.pin-note {
+  margin: 2px 0 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.lock-box {
+  margin-top: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #ffd699;
+  background: rgba(245, 165, 36, 0.12);
+  border: 1px solid rgba(245, 165, 36, 0.3);
+  border-radius: 12px;
+}
